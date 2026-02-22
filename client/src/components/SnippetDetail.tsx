@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileCode, Copy, Check, X, Trash2, Edit, Calendar, Folder, Tag } from 'lucide-react';
 import type { Snippet } from '../types';
 
@@ -11,12 +11,21 @@ interface SnippetDetailProps {
 
 export function SnippetDetail({ snippet, onClose, onEdit, onDelete }: SnippetDetailProps) {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(snippet.code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }

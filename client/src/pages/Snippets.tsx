@@ -95,11 +95,12 @@ export function Snippets() {
 
   const isLoading = isLoadingSnippets || isLoadingCollections || isLoadingTags;
 
+  const query = searchQuery.toLowerCase();
   const filteredSnippets = snippets?.filter((snippet) =>
-    snippet.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    snippet.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    snippet.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    snippet.language.toLowerCase().includes(searchQuery.toLowerCase())
+    snippet.title.toLowerCase().includes(query) ||
+    snippet.description?.toLowerCase().includes(query) ||
+    snippet.code.toLowerCase().includes(query) ||
+    snippet.language.toLowerCase().includes(query)
   );
 
   const handleCreate = (data: SnippetInput) => {

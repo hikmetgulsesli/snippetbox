@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileCode, Copy, Check, Trash2, Edit } from 'lucide-react';
 import type { Snippet } from '../types';
 
@@ -11,13 +11,22 @@ interface SnippetCardProps {
 
 export function SnippetCard({ snippet, onEdit, onDelete, onClick }: SnippetCardProps) {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(snippet.code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -33,8 +42,9 @@ export function SnippetCard({ snippet, onEdit, onDelete, onClick }: SnippetCardP
     onDelete?.(snippet);
   };
 
-  const previewLines = snippet.code.split('\n').slice(0, 3).join('\n');
-  const hasMoreLines = snippet.code.split('\n').length > 3;
+  const lines = snippet.code.split('\n');
+  const previewLines = lines.slice(0, 3).join('\n');
+  const hasMoreLines = lines.length > 3;
 
   return (
     <div

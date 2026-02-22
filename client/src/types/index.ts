@@ -37,6 +37,6 @@ export interface SnippetInput {
   code: string;
   language: string;
   collection_id?: string | null;
-  tag_ids?: string[];
+  tags?: string[];
   is_public?: boolean;
 }

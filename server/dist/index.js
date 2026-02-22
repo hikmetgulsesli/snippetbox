@@ -55,18 +55,20 @@ app.use((err, _req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
 });
-// Start server
-app.listen(PORT, async () => {
-    console.log(`Server running on port ${PORT}`);
-    // Test database connection
-    try {
-        const client = await pool.connect();
-        console.log('Database connected successfully');
-        client.release();
-    }
-    catch (err) {
-        console.error('Database connection error:', err);
-    }
-});
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, async () => {
+        console.log(`Server running on port ${PORT}`);
+        // Test database connection
+        try {
+            const client = await pool.connect();
+            console.log('Database connected successfully');
+            client.release();
+        }
+        catch (err) {
+            console.error('Database connection error:', err);
+        }
+    });
+}
 export default app;
 //# sourceMappingURL=index.js.map

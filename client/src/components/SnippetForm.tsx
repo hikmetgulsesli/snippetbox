@@ -11,6 +11,12 @@ interface SnippetFormProps {
   isSubmitting?: boolean;
 }
 
+const languages = [
+  'javascript', 'typescript', 'python', 'java', 'go', 'rust', 'c', 'cpp', 'csharp',
+  'ruby', 'php', 'swift', 'kotlin', 'sql', 'html', 'css', 'scss', 'json', 'yaml',
+  'markdown', 'bash', 'powershell', 'dockerfile', 'nginx'
+];
+
 export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, isSubmitting }: SnippetFormProps) {
   const [formData, setFormData] = useState<SnippetInput>({
     title: snippet?.title || '',
@@ -18,7 +24,7 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
     code: snippet?.code || '',
     language: snippet?.language || 'javascript',
     collection_id: snippet?.collection_id || null,
-    tag_ids: snippet?.tags?.map(t => t.id) || [],
+    tags: snippet?.tags?.map(t => t.id) || [],
     is_public: snippet?.is_public || false,
   });
 
@@ -53,24 +59,18 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
   const handleTagToggle = (tagId: string) => {
     setFormData(prev => ({
       ...prev,
-      tag_ids: prev.tag_ids?.includes(tagId)
-        ? prev.tag_ids.filter(id => id !== tagId)
-        : [...(prev.tag_ids || []), tagId]
+      tags: prev.tags?.includes(tagId)
+        ? prev.tags.filter(id => id !== tagId)
+        : [...(prev.tags || []), tagId]
     }));
   };
-
-  const languages = [
-    'javascript', 'typescript', 'python', 'java', 'go', 'rust', 'c', 'cpp', 'csharp',
-    'ruby', 'php', 'swift', 'kotlin', 'sql', 'html', 'css', 'scss', 'json', 'yaml',
-    'markdown', 'bash', 'powershell', 'dockerfile', 'nginx'
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onCancel}
+        onClick={!isSubmitting ? onCancel : undefined}
       />
 
       {/* Modal */}
@@ -194,12 +194,12 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
                     type="button"
                     onClick={() => handleTagToggle(tag.id)}
                     className={`badge cursor-pointer transition-all duration-200 ${
-                      formData.tag_ids?.includes(tag.id)
+                      formData.tags?.includes(tag.id)
                         ? 'ring-2 ring-[var(--primary)]'
                         : 'opacity-60 hover:opacity-100'
                     }`}
                     style={{
-                      backgroundColor: formData.tag_ids?.includes(tag.id) 
+                      backgroundColor: formData.tags?.includes(tag.id) 
                         ? `${tag.color}30`
                         : `${tag.color}15`,
                       color: tag.color
