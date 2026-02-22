@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import Prism from 'prismjs';
 import { Copy, Check } from 'lucide-react';
 
@@ -47,27 +47,38 @@ export function CodeBlock({
   className = '',
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
-  const codeRef = useRef<HTMLElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (codeRef.current) {
-      Prism.highlightElement(codeRef.current);
-    }
+  // Memoize line splitting
+  const lines = useMemo(() => code.split('\n'), [code]);
+
+  // Memoize Prism highlighting
+  const highlightedCode = useMemo(() => {
+    const grammar = (Prism.languages[language] || Prism.languages.markup) as Prism.Grammar;
+    return Prism.highlight(code, grammar, language);
   }, [code, language]);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
   };
-
-  const lines = code.split('\n');
-  const grammar = (Prism.languages[language] || Prism.languages.text || Prism.languages.markup) as Prism.Grammar;
-  const highlightedCode = Prism.highlight(code, grammar, language);
 
   return (
     <div className={`relative rounded-xl overflow-hidden bg-[#0f0f10] border border-[var(--border)] ${className}`}>
@@ -88,7 +99,7 @@ export function CodeBlock({
 
       {/* Code container */}
       <div 
-        className="overflow-x-auto"
+        className="overflow-auto"
         style={{ maxHeight }}
       >
         <div className="flex">
@@ -111,7 +122,6 @@ export function CodeBlock({
           <div className="flex-1 py-4 px-4 overflow-x-auto">
             <pre className="m-0 p-0 bg-transparent">
               <code
-                ref={codeRef}
                 className={`language-${language} font-mono text-sm leading-6`}
                 style={{
                   fontFamily: '"Fira Code", "Consolas", "Monaco", monospace',

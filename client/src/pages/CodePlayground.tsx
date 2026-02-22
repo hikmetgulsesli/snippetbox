@@ -27,8 +27,8 @@ export function CodePlayground() {
 
   const handleFilenameChange = (value: string) => {
     setFilename(value);
-    if (value.includes('.')) {
-      const detected = detectLanguageFromExtension(value);
+    const detected = detectLanguageFromExtension(value);
+    if (detected && detected !== language) {
       setLanguage(detected);
     }
   };

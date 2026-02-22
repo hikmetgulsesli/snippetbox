@@ -96,16 +96,23 @@ describe('CodeEditor', () => {
 
 describe('CodeBlock', () => {
   it('renders code with line numbers', () => {
+    const codeWithLines = 'const a;\nconst b;\nconst c;';
     render(
       <CodeBlock
-        code="line 1\nline 2\nline 3"
+        code={codeWithLines}
         language="javascript"
       />
     );
     
-    // Check for line number elements (they have specific styling)
-    const lineNumbers = screen.getAllByText(/^[123]$/);
-    expect(lineNumbers.length).toBeGreaterThanOrEqual(3);
+    // Check for line number elements by looking for the line number container
+    const lineNumberGutter = document.querySelector('.flex-shrink-0.py-4.pl-4');
+    expect(lineNumberGutter).not.toBeNull();
+    
+    // The gutter should contain line number divs - check text content
+    const textContent = lineNumberGutter?.textContent || '';
+    expect(textContent).toContain('1');
+    expect(textContent).toContain('2');
+    expect(textContent).toContain('3');
   });
 
   it('renders without line numbers when showLineNumbers is false', () => {
@@ -117,11 +124,10 @@ describe('CodeBlock', () => {
       />
     );
     
-    // Should not have the line number column (which has specific styling)
-    const lineNumberElements = screen.queryAllByText('1').filter(el => 
-      el.className.includes('min-width')
-    );
-    expect(lineNumberElements.length).toBe(0);
+    // With showLineNumbers={false}, the line number gutter should not exist
+    // The flex-shrink-0 class is only on the line number column
+    const lineNumberGutter = document.querySelector('.flex-shrink-0.py-4.pl-4');
+    expect(lineNumberGutter).toBeNull();
   });
 
   it('shows copy button by default', () => {

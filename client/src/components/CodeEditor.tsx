@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import { ChevronDown, FileCode } from 'lucide-react';
@@ -71,86 +71,6 @@ interface CodeEditorProps {
   showLanguageSelector?: boolean;
 }
 
-// Custom Prism theme using design tokens
-const prismStyles = `
-  .prism-editor {
-    font-family: 'Fira Code', 'Consolas', 'Monaco', 'monospace';
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  
-  .prism-editor textarea {
-    outline: none;
-  }
-  
-  /* Syntax highlighting colors matching DevTool palette */
-  .token.comment,
-  .token.prolog,
-  .token.doctype,
-  .token.cdata {
-    color: #71717a;
-    font-style: italic;
-  }
-  
-  .token.punctuation {
-    color: #a1a1aa;
-  }
-  
-  .token.property,
-  .token.tag,
-  .token.boolean,
-  .token.number,
-  .token.constant,
-  .token.symbol,
-  .token.deleted {
-    color: #f472b6;
-  }
-  
-  .token.selector,
-  .token.attr-name,
-  .token.string,
-  .token.char,
-  .token.builtin,
-  .token.inserted {
-    color: #a3e635;
-  }
-  
-  .token.operator,
-  .token.entity,
-  .token.url,
-  .language-css .token.string,
-  .style .token.string {
-    color: #22d3ee;
-  }
-  
-  .token.atrule,
-  .token.attr-value,
-  .token.keyword {
-    color: #22d3ee;
-    font-weight: 500;
-  }
-  
-  .token.function,
-  .token.class-name {
-    color: #60a5fa;
-  }
-  
-  .token.regex,
-  .token.important,
-  .token.variable {
-    color: #fbbf24;
-  }
-  
-  .token.important,
-  .token.bold {
-    font-weight: bold;
-  }
-  
-  .token.italic {
-    font-style: italic;
-  }
-`;
-
 export function CodeEditor({
   value,
   onChange,
@@ -163,7 +83,12 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const selectedLanguage = languages.find(l => l.id === language) || languages[0];
+
+  // Memoize selectedLanguage lookup
+  const selectedLanguage = useMemo(() => 
+    languages.find(l => l.id === language) || languages[0], 
+    [language]
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -176,15 +101,15 @@ export function CodeEditor({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const highlightCode = (code: string) => {
-    const grammar = (Prism.languages[language] || Prism.languages.text || Prism.languages.markup) as Prism.Grammar;
-    return Prism.highlight(code, grammar, language);
-  };
+  // Wrap highlightCode in useCallback
+  const highlightCode = useCallback((code: string) => {
+    const prismLanguage = language === 'text' ? 'markup' : language;
+    const grammar = (Prism.languages[prismLanguage] || Prism.languages.markup) as Prism.Grammar;
+    return Prism.highlight(code, grammar, prismLanguage);
+  }, [language]);
 
   return (
     <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-[#0f0f10]">
-      <style>{prismStyles}</style>
-      
       {/* Toolbar */}
       {showLanguageSelector && (
         <div className="flex items-center justify-between px-4 py-2 bg-[var(--surface-alt)] border-b border-[var(--border)]">
@@ -255,7 +180,8 @@ export function CodeEditor({
 
 // Language detection utility
 export function detectLanguageFromExtension(filename: string): LanguageId {
-  const ext = filename.toLowerCase().split('.').pop();
+  const lowerFilename = filename.toLowerCase();
+  const ext = lowerFilename.split('.').pop();
   
   const extensionMap: Record<string, LanguageId> = {
     'js': 'javascript',
@@ -291,6 +217,10 @@ export function detectLanguageFromExtension(filename: string): LanguageId {
     'md': 'markdown',
     'txt': 'text',
   };
+  
+  // Handle extensionless filenames like "Dockerfile"
+  if (lowerFilename === 'dockerfile') return 'docker';
+  if (lowerFilename === 'makefile') return 'bash';
   
   return extensionMap[ext || ''] || 'text';
 }
