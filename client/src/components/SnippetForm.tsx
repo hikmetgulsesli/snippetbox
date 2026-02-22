@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { X, FileCode, Folder, Tag, Globe } from 'lucide-react';
-import type { Snippet, SnippetInput, Collection, Tag as TagType } from '../types';
+import { X, FileCode, Folder, Globe } from 'lucide-react';
+import { TagInput, type Tag } from './TagInput';
+import type { Snippet, SnippetInput, Collection } from '../types';
 
 interface SnippetFormProps {
-  snippet?: Snippet;
+  snippet?: Snippet | undefined;
   collections: Collection[];
-  tags: TagType[];
+  tags: Tag[];
   onSubmit: (data: SnippetInput) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
   isSubmitting?: boolean;
 }
 
@@ -24,7 +26,7 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
     code: snippet?.code || '',
     language: snippet?.language || 'javascript',
     collection_id: snippet?.collection_id || null,
-    tags: snippet?.tags?.map(t => t.id) || [],
+    tag_ids: snippet?.tags?.map(t => t.id) || [],
     is_public: snippet?.is_public || false,
   });
 
@@ -33,15 +35,15 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.title.trim()) {
+    if (!formData.title?.trim()) {
       newErrors.title = 'Title is required';
     }
 
-    if (!formData.code.trim()) {
+    if (!formData.code?.trim()) {
       newErrors.code = 'Code is required';
     }
 
-    if (!formData.language.trim()) {
+    if (!formData.language?.trim()) {
       newErrors.language = 'Language is required';
     }
 
@@ -56,14 +58,15 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
     }
   };
 
-  const handleTagToggle = (tagId: string) => {
+  const handleTagsChange = (selectedTags: Tag[]) => {
     setFormData(prev => ({
       ...prev,
-      tags: prev.tags?.includes(tagId)
-        ? prev.tags.filter(id => id !== tagId)
-        : [...(prev.tags || []), tagId]
+      tag_ids: selectedTags.map(t => t.id)
     }));
   };
+
+  // Convert snippet tags to Tag type for TagInput
+  const selectedTags = tags.filter(t => formData.tag_ids?.includes(t.id));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
@@ -74,20 +77,20 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-[var(--surface-card)] border border-[var(--border)] shadow-2xl animate-slide-up">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-surface-800 border border-surface-700 shadow-2xl animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between p-6 border-b border-surface-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[var(--primary-900)]/30">
-              <FileCode className="w-5 h-5 text-[var(--primary)]" />
+            <div className="p-2 rounded-lg bg-primary-500/10">
+              <FileCode className="w-5 h-5 text-primary-400" />
             </div>
-            <h2 className="font-heading font-bold text-xl text-[var(--text)]">
+            <h2 className="text-xl font-bold text-surface-100">
               {snippet ? 'Edit Snippet' : 'New Snippet'}
             </h2>
           </div>
           <button
             onClick={onCancel}
-            className="btn btn-ghost p-2"
+            className="p-2 rounded-lg text-surface-400 hover:text-surface-200 hover:bg-surface-700 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -98,24 +101,24 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
           <div className="space-y-5">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-2">
+              <label className="block text-sm font-medium text-surface-300 mb-2">
                 Title *
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className={`input ${errors.title ? 'input-error' : ''}`}
+                className={`input ${errors.title ? 'border-red-500' : ''}`}
                 placeholder="Enter snippet title..."
               />
               {errors.title && (
-                <p className="text-sm text-[var(--error)] mt-1">{errors.title}</p>
+                <p className="text-sm text-red-400 mt-1">{errors.title}</p>
               )}
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-2">
+              <label className="block text-sm font-medium text-surface-300 mb-2">
                 Description
               </label>
               <input
@@ -129,43 +132,43 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
 
             {/* Language */}
             <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-2">
+              <label className="block text-sm font-medium text-surface-300 mb-2">
                 Language *
               </label>
               <select
                 value={formData.language}
                 onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                className={`input ${errors.language ? 'input-error' : ''}`}
+                className={`input ${errors.language ? 'border-red-500' : ''}`}
               >
                 {languages.map(lang => (
                   <option key={lang} value={lang}>{lang}</option>
                 ))}
               </select>
               {errors.language && (
-                <p className="text-sm text-[var(--error)] mt-1">{errors.language}</p>
+                <p className="text-sm text-red-400 mt-1">{errors.language}</p>
               )}
             </div>
 
             {/* Code */}
             <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-2">
+              <label className="block text-sm font-medium text-surface-300 mb-2">
                 Code *
               </label>
               <textarea
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                className={`input font-mono min-h-[200px] resize-y ${errors.code ? 'input-error' : ''}`}
+                className={`input font-mono min-h-[200px] resize-y ${errors.code ? 'border-red-500' : ''}`}
                 placeholder="Paste your code here..."
                 spellCheck={false}
               />
               {errors.code && (
-                <p className="text-sm text-[var(--error)] mt-1">{errors.code}</p>
+                <p className="text-sm text-red-400 mt-1">{errors.code}</p>
               )}
             </div>
 
             {/* Collection */}
             <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-2 flex items-center gap-2">
+              <label className="block text-sm font-medium text-surface-300 mb-2 flex items-center gap-2">
                 <Folder className="w-4 h-4" /> Collection
               </label>
               <select
@@ -182,43 +185,26 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
               </select>
             </div>
 
-            {/* Tags */}
+            {/* Tags with TagInput */}
             <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-2 flex items-center gap-2">
-                <Tag className="w-4 h-4" /> Tags
+              <label className="block text-sm font-medium text-surface-300 mb-2">
+                Tags
               </label>
-              <div className="flex flex-wrap gap-2">
-                {tags.map(tag => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => handleTagToggle(tag.id)}
-                    className={`badge cursor-pointer transition-all duration-200 ${
-                      formData.tags?.includes(tag.id)
-                        ? 'ring-2 ring-[var(--primary)]'
-                        : 'opacity-60 hover:opacity-100'
-                    }`}
-                    style={{
-                      backgroundColor: formData.tags?.includes(tag.id) 
-                        ? `${tag.color}30`
-                        : `${tag.color}15`,
-                      color: tag.color
-                    }}
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
+              <TagInput
+                selectedTags={selectedTags}
+                onTagsChange={handleTagsChange}
+                placeholder="Search or create tags..."
+              />
             </div>
 
             {/* Public toggle */}
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)]">
-              <Globe className="w-5 h-5 text-[var(--text-muted)]" />
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-surface-900 border border-surface-700">
+              <Globe className="w-5 h-5 text-surface-500" />
               <div className="flex-1">
-                <label className="block text-sm font-medium text-[var(--text)]">
+                <label className="block text-sm font-medium text-surface-200">
                   Make this snippet public
                 </label>
-                <p className="text-xs text-[var(--text-muted)]">
+                <p className="text-xs text-surface-500">
                   Public snippets can be shared with others via a unique link
                 </p>
               </div>
@@ -226,7 +212,7 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
                 type="button"
                 onClick={() => setFormData({ ...formData, is_public: !formData.is_public })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                  formData.is_public ? 'bg-[var(--primary)]' : 'bg-[var(--surface-elevated)]'
+                  formData.is_public ? 'bg-primary-500' : 'bg-surface-600'
                 }`}
               >
                 <span
@@ -239,19 +225,19 @@ export function SnippetForm({ snippet, collections, tags, onSubmit, onCancel, is
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-[var(--border)]">
+          <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-surface-700">
             <button
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="btn btn-secondary"
+              className="px-4 py-2 rounded-lg font-medium text-surface-300 hover:text-surface-100 hover:bg-surface-700 transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="btn btn-primary"
+              className="px-6 py-2 rounded-lg font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               {isSubmitting 
                 ? (snippet ? 'Saving...' : 'Creating...') 

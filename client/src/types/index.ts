@@ -39,7 +39,7 @@ export interface SnippetInput {
   code: string;
   language: string;
   collection_id?: string | null;
-  tags?: string[];
+  tag_ids?: string[];
   is_public?: boolean;
 }
 
