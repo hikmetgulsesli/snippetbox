@@ -87,7 +87,7 @@ export function TagInput({ selectedTags, onTagsChange, placeholder = 'Add tags..
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const tags = selectedTags || [];
     if (e.key === 'Backspace' && query === '' && tags.length > 0) {
-      const tagToRemove = tags[tags.length - 1]; if (tagToRemove) handleRemove(tagToRemove.id);;
+      const tagToRemove = tags[tags.length - 1]; if (tagToRemove) handleRemove(tagToRemove.id)
     }
     if (e.key === 'Escape') {
       setIsOpen(false);
