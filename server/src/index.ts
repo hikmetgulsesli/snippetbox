@@ -11,6 +11,7 @@ import collectionRoutes from './routes/collections.js';
 import searchRoutes from './routes/search.js';
 import importExportRoutes from './routes/importExport.js';
 import statsRoutes from './routes/stats.js';
+import { AppError } from './utils/errors.js';
 
 dotenv.config();
 
@@ -60,24 +61,44 @@ app.use('/api/stats', statsRoutes);
 // Public snippet sharing
 app.use('/s', publicLimiter);
 
-// Error handling
+// Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Error:', err);
+
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      }
+    });
+    return;
+  }
+
+  // Generic error response
+  res.status(500).json({
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message,
+    }
+  });
 });
 
-// Start server
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  
-  // Test database connection
-  try {
-    const client = await pool.connect();
-    console.log('Database connected successfully');
-    client.release();
-  } catch (err) {
-    console.error('Database connection error:', err);
-  }
-});
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, async () => {
+    console.log(`Server running on port ${PORT}`);
+
+    // Test database connection
+    try {
+      const client = await pool.connect();
+      console.log('Database connected successfully');
+      client.release();
+    } catch (err) {
+      console.error('Database connection error:', err);
+    }
+  });
+}
 
 export default app;
