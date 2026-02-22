@@ -1,20 +1,5 @@
 // SnippetBox Type Definitions
 
-export interface Snippet {
-  id: string;
-  title: string;
-  description: string | null;
-  code: string;
-  language: string;
-  collection_id: string | null;
-  is_public: boolean;
-  share_id: string | null;
-  created_at: string;
-  updated_at: string;
-  tags: Tag[];
-  collection: Collection | null;
-}
-
 export interface Collection {
   id: string;
   name: string;
@@ -31,6 +16,31 @@ export interface Tag {
   color: string;
   created_at: string;
   snippet_count?: number;
+}
+
+export interface Snippet {
+  id: string;
+  title: string;
+  description: string | null;
+  code: string;
+  language: string;
+  collection_id: string | null;
+  collection?: Collection | null;
+  is_public: boolean;
+  share_id: string | null;
+  created_at: string;
+  updated_at: string;
+  tags?: Tag[];
+}
+
+export interface SnippetInput {
+  title: string;
+  description?: string;
+  code: string;
+  language: string;
+  collection_id?: string | null;
+  tags?: string[];
+  is_public?: boolean;
 }
 
 export interface Stats {
