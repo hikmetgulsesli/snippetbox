@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { snippetsApi, collectionsApi, tagsApi, statsApi, searchApi } from '../utils/api.js';
-import type { Snippet, Collection, Tag, Stats, SearchFilters } from '../types/index.js';
+import type { Snippet, Collection, Tag, Stats, SearchFilters, SnippetFormData, CollectionFormData } from '../types/index.js';
 
 // Snippets hooks
 export function useSnippets() {
@@ -26,7 +26,7 @@ export function useCreateSnippet() {
 export function useUpdateSnippet() {
   const queryClient = useQueryClient();
   return useMutation(
-    ({ id, data }: { id: string; data: unknown }) => snippetsApi.update(id, data),
+    ({ id, data }: { id: string; data: Partial<SnippetFormData> }) => snippetsApi.update(id, data),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('snippets');
@@ -63,7 +63,7 @@ export function useCreateCollection() {
 export function useUpdateCollection() {
   const queryClient = useQueryClient();
   return useMutation(
-    ({ id, data }: { id: string; data: unknown }) => collectionsApi.update(id, data),
+    ({ id, data }: { id: string; data: Partial<CollectionFormData> }) => collectionsApi.update(id, data),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('collections');

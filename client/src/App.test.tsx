@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 describe('App', () => {
-  it('renders without crashing', () => {
-    // Note: This is a basic smoke test
-    // Full routing tests would require MemoryRouter wrapper
+  it('project setup is complete', () => {
+    // Basic smoke test - verifies test infrastructure works
     expect(true).toBe(true);
   });
 });

@@ -44,7 +44,7 @@ export interface Stats {
 
 export interface SnippetFormData {
   title: string;
-  description: string;
+  description: string | null;
   code: string;
   language: string;
   collection_id: string | null;
@@ -54,7 +54,7 @@ export interface SnippetFormData {
 
 export interface CollectionFormData {
   name: string;
-  description: string;
+  description: string | null;
   color: string;
 }
 
