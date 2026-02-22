@@ -6,6 +6,7 @@ import { Snippets } from './pages/Snippets'
 import { Collections } from './pages/Collections'
 import { Tags } from './pages/Tags'
 import { Settings } from './pages/Settings'
+import { CodePlayground } from './pages/CodePlayground'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -22,6 +23,7 @@ function App() {
             <Route path="/collections" element={<Collections />} />
             <Route path="/tags" element={<Tags />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/playground" element={<CodePlayground />} />
           </Routes>
         </div>
       </main>
