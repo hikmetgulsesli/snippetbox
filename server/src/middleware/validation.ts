@@ -1,26 +1,46 @@
 import { z } from 'zod';
 
-// Language detection patterns
+// Language detection patterns - order matters (more specific patterns first)
 const languagePatterns: Record<string, RegExp> = {
-  typescript: /\b(interface|type\s+\w+|:\s*(string|number|boolean|any)\b)\b/,
-  python: /\b(def\s+\w+\s*\(|import\s+\w+|from\s+\w+\s+import)\b/,
+  // Python - match def statement with parentheses and colon (newline after colon is ok)
+  python: /def\s+\w+\s*\([^)]*\):/,
+  // PHP - unique opening tag
+  php: /\b(<\?php|\$\w+\s*=|echo\s+["'])\b/,
+  // HTML - unique doctype or tags (no word boundary before <)
+  html: /(<!DOCTYPE\s+html|<html[\s>])/i,
+  // CSS - class or id selectors (match .foo{ or #foo{ or .foo { or #foo {)
+  css: /[.#]\w+\s*\{/,
+  // TypeScript - interfaces and type annotations
+  typescript: /\b(interface\s+\w+|type\s+\w+\s*=|:\s*(string|number|boolean)\b)\b/,
+  // Java
   java: /\b(public\s+class|private\s+|protected\s+|void\s+\w+\s*\()\b/,
+  // Go
   go: /\b(func\s+\w+|package\s+\w+|import\s+\(\s*")\b/,
+  // Rust
   rust: /\b(fn\s+\w+|let\s+mut|impl\s+|use\s+\w+::)\b/,
-  ruby: /\b(def\s+\w+|class\s+\w+\s*<|require\s+['"])\b/,
-  php: /\b(\u003c\?php|\$\w+\s*=|function\s+\w+\s*\()\b/,
+  // Ruby
+  ruby: /\b(def\s+\w+\s*$|class\s+\w+\s*<|require\s+['"]|puts\s+)\b/m,
+  // Swift
   swift: /\b(func\s+\w+|var\s+\w+|let\s+\w+|import\s+\w+)\b/,
+  // Kotlin
   kotlin: /\b(fun\s+\w+|val\s+\w+|var\s+\w+|package\s+\w+)\b/,
+  // C#
   csharp: /\b(using\s+\w+|namespace\s+\w+|public\s+class)\b/,
+  // SQL
   sql: /\b(SELECT\s+.*\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET)\b/i,
-  html: /\b(<!DOCTYPE\s+html|<html|<head|<body)>?/i,
-  css: /\b([.#]\w+\s*\{|@media\s+|@import\s+)\b/,
+  // SCSS
   scss: /\b(@mixin\s+|@include\s+|\$\w+\s*:)\b/,
+  // Bash
   bash: /\b(echo\s+|#!\/bin\/bash|#!\/bin\/sh)\b/,
+  // PowerShell
   powershell: /\b(Get-|Set-|Write-|\$env:)\b/,
+  // Dockerfile
   dockerfile: /\b(FROM\s+|RUN\s+|CMD\s+|EXPOSE\s+)\b/i,
+  // YAML
   yaml: /\b(\w+:\s*\n|\s+-\s+\w+:)\b/,
-  json: /^\s*(\[|\{).*(\]|\})\s*$/,
+  // JSON
+  json: /^\s*(\[|\{).*?(\]|\})\s*$/s,
+  // Markdown
   markdown: /\b(#{1,6}\s+|\*\s+.+?\n)/,
 };
 

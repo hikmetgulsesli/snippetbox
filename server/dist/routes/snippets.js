@@ -50,7 +50,7 @@ router.get('/', validateQuery(listSnippetsQuerySchema), async (req, res) => {
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -88,7 +88,7 @@ router.get('/:id', validateParams(snippetParamsSchema), async (req, res) => {
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -144,7 +144,7 @@ router.post('/', validateBody(createSnippetSchema), async (req, res) => {
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -231,7 +231,7 @@ router.put('/:id', validateParams(snippetParamsSchema), validateBody(updateSnipp
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
