@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../database/connection.js';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { validateBody, validateParams, validateQuery } from '../middleware/validateRequest.js';
 import { 
   createSnippetSchema, 
@@ -11,6 +12,15 @@ import {
 } from '../middleware/validation.js';
 
 const router = Router();
+
+// Schema for adding tags to snippets
+const addTagToSnippetSchema = z.object({
+  tag_id: z.string().uuid('Invalid tag ID').optional(),
+  name: z.string().min(1).max(100).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+}).refine((data) => data.tag_id || data.name, {
+  message: 'Either tag_id or name must be provided',
+});
 
 // Get all snippets with pagination and filtering
 router.get('/', validateQuery(listSnippetsQuerySchema), async (req, res) => {
@@ -77,7 +87,7 @@ router.get('/', validateQuery(listSnippetsQuerySchema), async (req, res) => {
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
+        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -116,7 +126,7 @@ router.get('/:id', validateParams(snippetParamsSchema), async (req, res) => {
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
+        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -175,7 +185,7 @@ router.post('/', validateBody(createSnippetSchema), async (req, res) => {
     `, [title, description || null, code, detectedLanguage, collection_id || null, is_public || false, shareId]);
     
     const snippet = snippetResult.rows[0];
-    
+
     // Add tags if provided
     if (tag_ids && tag_ids.length > 0) {
       for (const tagId of tag_ids) {
@@ -190,7 +200,7 @@ router.post('/', validateBody(createSnippetSchema), async (req, res) => {
       SELECT s.*, 
         COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
+        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -372,9 +382,6 @@ router.post('/:id/copy', validateParams(snippetParamsSchema), async (req, res) =
       });
     }
 
-    // TODO: Track copy analytics here in the future
-    // await pool.query('INSERT INTO snippet_copies (snippet_id, copied_at) VALUES ($1, NOW())', [req.params.id]);
-    
     res.json({
       message: 'Snippet code ready for copy',
       code: result.rows[0].code,
@@ -386,6 +393,114 @@ router.post('/:id/copy', validateParams(snippetParamsSchema), async (req, res) =
       error: { 
         code: 'INTERNAL_ERROR', 
         message: 'Failed to prepare snippet copy' 
+      } 
+    });
+  }
+});
+
+// Add tag to snippet
+router.post('/:id/tags', validateParams(snippetParamsSchema), validateBody(addTagToSnippetSchema), async (req, res) => {
+  const { id } = req.params;
+  const { tag_id, name, color } = req.body;
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Verify snippet exists
+    const snippetCheck = await client.query('SELECT id FROM snippets WHERE id = $1', [id]);
+    if (snippetCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ 
+        error: { 
+          code: 'NOT_FOUND', 
+          message: 'Snippet not found' 
+        } 
+      });
+    }
+    
+    let finalTagId = tag_id;
+    
+    // If name provided instead of tag_id, find or create tag
+    if (name && !tag_id) {
+      const existingTag = await client.query('SELECT * FROM tags WHERE name = LOWER($1)', [name]);
+      
+      if (existingTag.rows.length > 0) {
+        finalTagId = existingTag.rows[0].id;
+      } else {
+        // Create new tag
+        const newTag = await client.query(
+          'INSERT INTO tags (name, color) VALUES (LOWER($1), $2) RETURNING id',
+          [name, color || '#10B981']
+        );
+        finalTagId = newTag.rows[0].id;
+      }
+    }
+    
+    // Add tag to snippet (ignore if already exists)
+    await client.query(`
+      INSERT INTO snippet_tags (snippet_id, tag_id) 
+      VALUES ($1, $2) 
+      ON CONFLICT (snippet_id, tag_id) DO NOTHING
+    `, [id, finalTagId]);
+    
+    // Get updated snippet with tags
+    const updatedSnippet = await client.query(`
+      SELECT s.*, 
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
+          FILTER (WHERE t.id IS NOT NULL), '[]') as tags
+      FROM snippets s
+      LEFT JOIN snippet_tags st ON s.id = st.snippet_id
+      LEFT JOIN tags t ON st.tag_id = t.id
+      WHERE s.id = $1
+      GROUP BY s.id
+    `, [id]);
+    
+    await client.query('COMMIT');
+    res.json(updatedSnippet.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error adding tag to snippet:', err);
+    res.status(500).json({ 
+      error: { 
+        code: 'INTERNAL_ERROR', 
+        message: 'Failed to add tag to snippet' 
+      } 
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Remove tag from snippet
+router.delete('/:id/tags/:tagId', validateParams(z.object({ 
+  id: z.string().uuid(), 
+  tagId: z.string().uuid() 
+})), async (req, res) => {
+  const { id, tagId } = req.params;
+  
+  try {
+    const result = await pool.query(
+      'DELETE FROM snippet_tags WHERE snippet_id = $1 AND tag_id = $2 RETURNING *',
+      [id, tagId]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        error: { 
+          code: 'NOT_FOUND', 
+          message: 'Tag association not found' 
+        } 
+      });
+    }
+    
+    res.status(204).send();
+  } catch (err) {
+    console.error('Error removing tag from snippet:', err);
+    res.status(500).json({ 
+      error: { 
+        code: 'INTERNAL_ERROR', 
+        message: 'Failed to remove tag from snippet' 
       } 
     });
   }
