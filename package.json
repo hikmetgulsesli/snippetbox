@@ -1,0 +1,35 @@
+{
+  "name": "snippetbox",
+  "version": "1.0.0",
+  "description": "A modern, self-hosted code snippet manager",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "test": "npm run test:server && npm run test:client",
+    "test:client": "cd client && npm test",
+    "test:server": "cd server && npm test",
+    "lint": "eslint \"**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
+    "db:migrate": "cd server && npm run db:migrate",
+    "db:seed": "cd server && npm run db:seed",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "@eslint/js": "^8.57.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.1",
+    "typescript-eslint": "^7.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
