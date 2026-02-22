@@ -15,7 +15,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-interface SidebarProps {
+export interface SidebarProps {
   isOpen: boolean
   onToggle: () => void
 }
