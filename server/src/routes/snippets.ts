@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../database/connection.js';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { validateBody, validateParams, validateQuery } from '../middleware/validateRequest.js';
 import { 
   createSnippetSchema, 
@@ -21,6 +22,8 @@ router.get('/', validateQuery(listSnippetsQuerySchema), async (req, res) => {
     language, 
     collection_id, 
     tag, 
+    tags,
+    tag_mode,
     sort_by, 
     sort_order 
   } = req.query as unknown as ReturnType<typeof listSnippetsQuerySchema.parse>;
@@ -62,6 +65,31 @@ router.get('/', validateQuery(listSnippetsQuerySchema), async (req, res) => {
       )`;
       params.push(tag);
       paramIndex++;
+    }
+
+    // Filter by multiple tags with AND/OR logic
+    if (tags) {
+      const tagIds = tags.split(',').filter(id => id.trim());
+      if (tagIds.length > 0) {
+        if (tag_mode === 'and') {
+          // AND mode: snippet must have ALL specified tags
+          whereClause += ` AND (
+            SELECT COUNT(DISTINCT st.tag_id)
+            FROM snippet_tags st
+            WHERE st.snippet_id = s.id AND st.tag_id IN (${tagIds.map((_, i) => `$${paramIndex + i}`).join(',')})
+          ) = ${tagIds.length}`;
+          params.push(...tagIds);
+          paramIndex += tagIds.length;
+        } else {
+          // OR mode: snippet must have ANY of the specified tags
+          whereClause += ` AND EXISTS (
+            SELECT 1 FROM snippet_tags st
+            WHERE st.snippet_id = s.id AND st.tag_id IN (${tagIds.map((_, i) => `$${paramIndex + i}`).join(',')})
+          )`;
+          params.push(...tagIds);
+          paramIndex += tagIds.length;
+        }
+      }
     }
 
     // Get total count
@@ -372,9 +400,6 @@ router.post('/:id/copy', validateParams(snippetParamsSchema), async (req, res) =
       });
     }
 
-    // TODO: Track copy analytics here in the future
-    // await pool.query('INSERT INTO snippet_copies (snippet_id, copied_at) VALUES ($1, NOW())', [req.params.id]);
-    
     res.json({
       message: 'Snippet code ready for copy',
       code: result.rows[0].code,
@@ -387,6 +412,145 @@ router.post('/:id/copy', validateParams(snippetParamsSchema), async (req, res) =
         code: 'INTERNAL_ERROR', 
         message: 'Failed to prepare snippet copy' 
       } 
+    });
+  }
+});
+
+// Add tag to snippet
+router.post('/:id/tags', validateParams(snippetParamsSchema), async (req, res) => {
+  const { id } = req.params;
+  const { tag_id, name, color } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Verify snippet exists
+    const snippetResult = await client.query(
+      'SELECT id FROM snippets WHERE id = $1',
+      [id]
+    );
+
+    if (snippetResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Snippet not found',
+        },
+      });
+    }
+
+    let finalTagId = tag_id;
+
+    // If no tag_id provided, create or find tag by name
+    if (!finalTagId && name) {
+      const existingTag = await client.query(
+        'SELECT id FROM tags WHERE name = LOWER($1)',
+        [name]
+      );
+
+      if (existingTag.rows.length > 0) {
+        finalTagId = existingTag.rows[0].id;
+      } else {
+        const newTag = await client.query(
+          'INSERT INTO tags (name, color) VALUES (LOWER($1), $2) RETURNING id',
+          [name, color || '#10B981']
+        );
+        finalTagId = newTag.rows[0].id;
+      }
+    }
+
+    if (!finalTagId) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Either tag_id or name must be provided',
+        },
+      });
+    }
+
+    // Check if association already exists
+    const existingAssoc = await client.query(
+      'SELECT 1 FROM snippet_tags WHERE snippet_id = $1 AND tag_id = $2',
+      [id, finalTagId]
+    );
+
+    if (existingAssoc.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: {
+          code: 'CONFLICT',
+          message: 'Tag is already associated with this snippet',
+        },
+      });
+    }
+
+    // Create association
+    await client.query(
+      'INSERT INTO snippet_tags (snippet_id, tag_id) VALUES ($1, $2)',
+      [id, finalTagId]
+    );
+
+    // Fetch updated snippet with tags
+    const result = await client.query(`
+      SELECT s.*, 
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
+          FILTER (WHERE t.id IS NOT NULL), '[]') as tags
+      FROM snippets s
+      LEFT JOIN snippet_tags st ON s.id = st.snippet_id
+      LEFT JOIN tags t ON st.tag_id = t.id
+      WHERE s.id = $1
+      GROUP BY s.id
+    `, [id]);
+
+    await client.query('COMMIT');
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error adding tag to snippet:', err);
+    res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to add tag to snippet',
+      },
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Remove tag from snippet
+router.delete('/:id/tags/:tagId', validateParams(z.object({
+  id: z.string().uuid(),
+  tagId: z.string().uuid(),
+})), async (req, res) => {
+  const { id, tagId } = req.params;
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM snippet_tags WHERE snippet_id = $1 AND tag_id = $2 RETURNING *',
+      [id, tagId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Tag association not found',
+        },
+      });
+    }
+
+    res.status(204).send();
+  } catch (err) {
+    console.error('Error removing tag from snippet:', err);
+    res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to remove tag from snippet',
+      },
     });
   }
 });

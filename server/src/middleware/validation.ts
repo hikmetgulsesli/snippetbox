@@ -129,6 +129,8 @@ export const listSnippetsQuerySchema = z.object({
   language: z.string().optional(),
   collection_id: z.string().uuid().optional(),
   tag: z.string().optional(),
+  tags: z.string().optional(), // Comma-separated list of tag IDs for filtering
+  tag_mode: z.enum(['and', 'or']).default('or'), // Filter mode for multiple tags
   sort_by: z.enum(['created_at', 'updated_at', 'title']).default('updated_at'),
   sort_order: z.enum(['asc', 'desc']).default('desc'),
 });
