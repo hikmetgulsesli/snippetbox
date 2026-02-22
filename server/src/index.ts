@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { pool } from './database/connection.js';
+import { testConnection } from './database/connection.js';
 import snippetRoutes from './routes/snippets.js';
 import tagRoutes from './routes/tags.js';
 import collectionRoutes from './routes/collections.js';
@@ -15,7 +15,7 @@ import statsRoutes from './routes/stats.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3512;
+const PORT = parseInt(process.env.PORT || '3512', 10);
 
 // Security middleware
 app.use(helmet());
@@ -72,12 +72,11 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`Server running on port ${PORT}`);
     
     // Test database connection
-    try {
-      const client = await pool.connect();
+    const connected = await testConnection();
+    if (connected) {
       console.log('Database connected successfully');
-      client.release();
-    } catch (err) {
-      console.error('Database connection error:', err);
+    } else {
+      console.error('Failed to connect to database');
     }
   });
 }

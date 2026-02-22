@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { pool } from './database/connection.js';
+import { testConnection } from './database/connection.js';
 import snippetRoutes from './routes/snippets.js';
 import tagRoutes from './routes/tags.js';
 import collectionRoutes from './routes/collections.js';
@@ -13,7 +13,7 @@ import importExportRoutes from './routes/importExport.js';
 import statsRoutes from './routes/stats.js';
 dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 3512;
+const PORT = parseInt(process.env.PORT || '3512', 10);
 // Security middleware
 app.use(helmet());
 app.use(cors({
@@ -55,18 +55,19 @@ app.use((err, _req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
 });
-// Start server
-app.listen(PORT, async () => {
-    console.log(`Server running on port ${PORT}`);
-    // Test database connection
-    try {
-        const client = await pool.connect();
-        console.log('Database connected successfully');
-        client.release();
-    }
-    catch (err) {
-        console.error('Database connection error:', err);
-    }
-});
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, async () => {
+        console.log(`Server running on port ${PORT}`);
+        // Test database connection
+        const connected = await testConnection();
+        if (connected) {
+            console.log('Database connected successfully');
+        }
+        else {
+            console.error('Failed to connect to database');
+        }
+    });
+}
 export default app;
 //# sourceMappingURL=index.js.map
