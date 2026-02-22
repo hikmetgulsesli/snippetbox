@@ -4,17 +4,20 @@ interface DeleteModalProps {
   title: string;
   message: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
   isDeleting?: boolean;
 }
 
-export function DeleteModal({ title, message, onConfirm, onCancel, isDeleting }: DeleteModalProps) {
+export function DeleteModal({ title, message, onConfirm, onCancel, onClose, isDeleting }: DeleteModalProps) {
+  const handleClose = onClose || onCancel;
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={!isDeleting ? onCancel : undefined}
+        onClick={!isDeleting ? handleClose : undefined}
       />
 
       {/* Modal */}
@@ -34,7 +37,7 @@ export function DeleteModal({ title, message, onConfirm, onCancel, isDeleting }:
 
           <div className="flex items-center justify-end gap-3 mt-6">
             <button
-              onClick={onCancel}
+              onClick={handleClose}
               disabled={isDeleting}
               className="btn btn-secondary"
             >

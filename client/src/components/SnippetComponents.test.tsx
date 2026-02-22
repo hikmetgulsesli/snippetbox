@@ -90,6 +90,7 @@ describe('SnippetForm', () => {
         tags={mockTags}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
       />
     );
     
@@ -106,6 +107,7 @@ describe('SnippetForm', () => {
         tags={mockTags}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
       />
     );
     
@@ -119,7 +121,7 @@ describe('SnippetForm', () => {
         collections={mockCollections}
         tags={mockTags}
         onSubmit={vi.fn()}
-        onCancel={handleCancel}
+        onClose={handleCancel}
       />
     );
     
@@ -134,6 +136,7 @@ describe('SnippetForm', () => {
         tags={mockTags}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
       />
     );
     
@@ -150,6 +153,7 @@ describe('SnippetForm', () => {
         tags={mockTags}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
       />
     );
     
@@ -171,6 +175,7 @@ describe('DeleteModal', () => {
         message="Are you sure you want to delete this snippet?"
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
       />
     );
     
@@ -185,7 +190,7 @@ describe('DeleteModal', () => {
         title="Delete Snippet"
         message="Are you sure?"
         onConfirm={vi.fn()}
-        onCancel={handleCancel}
+        onClose={handleCancel}
       />
     );
     
@@ -201,6 +206,7 @@ describe('DeleteModal', () => {
         message="Are you sure?"
         onConfirm={handleConfirm}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
       />
     );
     
@@ -215,6 +221,7 @@ describe('DeleteModal', () => {
         message="Are you sure?"
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
+          onClose={vi.fn()}
         isDeleting={true}
       />
     );
