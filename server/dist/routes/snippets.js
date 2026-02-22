@@ -56,10 +56,10 @@ router.get('/', validateQuery(listSnippetsQuerySchema), async (req, res) => {
         // Get snippets
         const dataParams = [...params, limit, offset];
         const result = await pool.query(`
-      SELECT s.*, 
-        COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
+      SELECT s.*,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color))
           FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
-        jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color) as collection
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
@@ -356,14 +356,16 @@ router.post('/:id/tags', validateParams(snippetParamsSchema), validateBody(addTa
     `, [id, finalTagId]);
         // Get updated snippet with tags
         const updatedSnippet = await client.query(`
-      SELECT s.*, 
-        COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color)) 
-          FILTER (WHERE t.id IS NOT NULL), '[]') as tags
+      SELECT s.*,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'color', t.color))
+          FILTER (WHERE t.id IS NOT NULL), '[]') as tags,
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('id', c.id, 'name', c.name, 'color', c.color, 'description', c.description) ELSE NULL END as collection
       FROM snippets s
       LEFT JOIN snippet_tags st ON s.id = st.snippet_id
       LEFT JOIN tags t ON st.tag_id = t.id
+      LEFT JOIN collections c ON s.collection_id = c.id
       WHERE s.id = $1
-      GROUP BY s.id
+      GROUP BY s.id, c.id
     `, [id]);
         await client.query('COMMIT');
         res.json(updatedSnippet.rows[0]);
