@@ -1,50 +1,146 @@
-import { useState } from 'react'
-import { useQuery } from 'react-query'
-import { Plus, Search, Filter } from 'lucide-react'
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { Plus, Search, Filter } from 'lucide-react';
+import { SnippetCard } from '../components/SnippetCard';
+import { SnippetDetail } from '../components/SnippetDetail';
+import { SnippetForm } from '../components/SnippetForm';
+import { DeleteModal } from '../components/DeleteModal';
+import { SnippetListSkeleton } from '../components/Skeletons';
+import type { Snippet, SnippetInput, Collection, Tag } from '../types';
 
-interface Snippet {
-  id: string
-  title: string
-  description?: string
-  code: string
-  language: string
-  is_public: boolean
-  created_at: string
-  updated_at: string
-  tags: { id: string; name: string; color: string }[]
-  collection?: { id: string; name: string; color: string }
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
 
 async function fetchSnippets(): Promise<Snippet[]> {
-  const response = await fetch('/api/snippets')
-  if (!response.ok) throw new Error('Failed to fetch snippets')
-  return response.json()
+  const response = await fetch(`${API_URL}/api/snippets`);
+  if (!response.ok) throw new Error('Failed to fetch snippets');
+  return response.json();
+}
+
+async function fetchCollections(): Promise<Collection[]> {
+  const response = await fetch(`${API_URL}/api/collections`);
+  if (!response.ok) throw new Error('Failed to fetch collections');
+  return response.json();
+}
+
+async function fetchTags(): Promise<Tag[]> {
+  const response = await fetch(`${API_URL}/api/tags`);
+  if (!response.ok) throw new Error('Failed to fetch tags');
+  return response.json();
+}
+
+async function createSnippet(data: SnippetInput): Promise<Snippet> {
+  const response = await fetch(`${API_URL}/api/snippets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to create snippet');
+  return response.json();
+}
+
+async function updateSnippet(id: string, data: SnippetInput): Promise<Snippet> {
+  const response = await fetch(`${API_URL}/api/snippets/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update snippet');
+  return response.json();
+}
+
+async function deleteSnippet(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/snippets/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete snippet');
 }
 
 export function Snippets() {
-  const { data: snippets, isLoading } = useQuery('snippets', fetchSnippets)
-  const [searchQuery, setSearchQuery] = useState('')
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSnippet, setSelectedSnippet] = useState<Snippet | null>(null);
+  const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
+  const [deletingSnippet, setDeletingSnippet] = useState<Snippet | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const { data: snippets, isLoading: isLoadingSnippets } = useQuery('snippets', fetchSnippets);
+  const { data: collections, isLoading: isLoadingCollections } = useQuery('collections', fetchCollections);
+  const { data: tags, isLoading: isLoadingTags } = useQuery('tags', fetchTags);
+
+  const createMutation = useMutation(createSnippet, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('snippets');
+      setIsCreating(false);
+    },
+  });
+
+  const updateMutation = useMutation(
+    ({ id, data }: { id: string; data: SnippetInput }) => updateSnippet(id, data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('snippets');
+        setEditingSnippet(null);
+        setSelectedSnippet(null);
+      },
+    }
+  );
+
+  const deleteMutation = useMutation(deleteSnippet, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('snippets');
+      setDeletingSnippet(null);
+      setSelectedSnippet(null);
+    },
+  });
+
+  const isLoading = isLoadingSnippets || isLoadingCollections || isLoadingTags;
 
   const filteredSnippets = snippets?.filter((snippet) =>
     snippet.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     snippet.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    snippet.code.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+    snippet.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    snippet.language.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCreate = (data: SnippetInput) => {
+    createMutation.mutate(data);
+  };
+
+  const handleUpdate = (data: SnippetInput) => {
+    if (editingSnippet) {
+      updateMutation.mutate({ id: editingSnippet.id, data });
+    }
+  };
+
+  const handleDelete = () => {
+    if (deletingSnippet) {
+      deleteMutation.mutate(deletingSnippet.id);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Snippets</h1>
-        <button className="btn-primary flex items-center gap-2">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-heading font-bold text-3xl text-[var(--text)]">Snippets</h1>
+          <p className="text-[var(--text-muted)] mt-1">
+            {snippets?.length || 0} code snippets
+          </p>
+        </div>
+        <button
+          onClick={() => setIsCreating(true)}
+          className="btn btn-primary flex items-center justify-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           New Snippet
         </button>
       </div>
 
       {/* Search and Filter */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-subtle)]" />
           <input
             type="text"
             placeholder="Search snippets..."
@@ -53,7 +149,7 @@ export function Snippets() {
             className="input pl-10"
           />
         </div>
-        <button className="btn-secondary flex items-center gap-2">
+        <button className="btn btn-secondary flex items-center justify-center gap-2">
           <Filter className="w-4 h-4" />
           Filter
         </button>
@@ -61,69 +157,80 @@ export function Snippets() {
 
       {/* Snippets List */}
       {isLoading ? (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="card p-6 h-32 animate-pulse bg-gray-200 dark:bg-gray-700" />
-          ))}
-        </div>
+        <SnippetListSkeleton count={3} />
       ) : (
         <div className="space-y-4">
           {filteredSnippets?.map((snippet) => (
-            <SnippetCard key={snippet.id} snippet={snippet} />
-          )) || <p className="text-gray-500">No snippets found</p>}
+            <SnippetCard
+              key={snippet.id}
+              snippet={snippet}
+              onClick={setSelectedSnippet}
+              onEdit={(s) => {
+                setEditingSnippet(s);
+                setSelectedSnippet(null);
+              }}
+              onDelete={(s) => {
+                setDeletingSnippet(s);
+                setSelectedSnippet(null);
+              }}
+            />
+          ))}
+          {filteredSnippets?.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-[var(--text-muted)]">
+                {searchQuery ? 'No snippets match your search' : 'No snippets yet. Create your first one!'}
+              </p>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Modals */}
+      {selectedSnippet && (
+        <SnippetDetail
+          snippet={selectedSnippet}
+          onClose={() => setSelectedSnippet(null)}
+          onEdit={(s) => {
+            setEditingSnippet(s);
+            setSelectedSnippet(null);
+          }}
+          onDelete={(s) => {
+            setDeletingSnippet(s);
+            setSelectedSnippet(null);
+          }}
+        />
+      )}
+
+      {isCreating && collections && tags && (
+        <SnippetForm
+          collections={collections}
+          tags={tags}
+          onSubmit={handleCreate}
+          onCancel={() => setIsCreating(false)}
+          isSubmitting={createMutation.isLoading}
+        />
+      )}
+
+      {editingSnippet && collections && tags && (
+        <SnippetForm
+          snippet={editingSnippet}
+          collections={collections}
+          tags={tags}
+          onSubmit={handleUpdate}
+          onCancel={() => setEditingSnippet(null)}
+          isSubmitting={updateMutation.isLoading}
+        />
+      )}
+
+      {deletingSnippet && (
+        <DeleteModal
+          title="Delete Snippet"
+          message={`Are you sure you want to delete "${deletingSnippet.title}"? This action cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setDeletingSnippet(null)}
+          isDeleting={deleteMutation.isLoading}
+        />
+      )}
     </div>
-  )
-}
-
-function SnippetCard({ snippet }: { snippet: Snippet }) {
-  const previewLines = snippet.code.split('\n').slice(0, 3).join('\n')
-
-  return (
-    <div className="card p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{snippet.title}</h3>
-          {snippet.description && (
-            <p className="text-sm text-gray-500 mt-1">{snippet.description}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-            {snippet.language}
-          </span>
-          {snippet.is_public && (
-            <span className="px-2 py-1 text-xs font-medium rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-              Public
-            </span>
-          )}
-        </div>
-      </div>
-
-      <pre className="bg-gray-900 rounded-lg p-3 overflow-x-auto">
-        <code className="text-sm text-gray-300 font-mono">{previewLines}</code>
-        {snippet.code.split('\n').length > 3 && (
-          <span className="text-gray-500">... ({snippet.code.split('\n').length - 3} more lines)</span>
-        )}
-      </pre>
-
-      <div className="flex items-center justify-between mt-4">
-        <div className="flex items-center gap-2">
-          {snippet.tags.map((tag) => (
-            <span
-              key={tag.id}
-              className="px-2 py-1 text-xs font-medium rounded-full"
-              style={{ backgroundColor: tag.color + '20', color: tag.color }}
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-        <p className="text-sm text-gray-500">
-          Updated {new Date(snippet.updated_at).toLocaleDateString()}
-        </p>
-      </div>
-    </div>
-  )
+  );
 }
