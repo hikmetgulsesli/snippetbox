@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Search, Tag, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Search, Tag, X, FolderOpen } from 'lucide-react';
 import { SnippetCard } from '../components/SnippetCard';
 import { SnippetDetail } from '../components/SnippetDetail';
 import { SnippetForm } from '../components/SnippetForm';
@@ -11,11 +12,12 @@ import type { Snippet, SnippetInput, Collection, Tag as TagType } from '../types
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
 
-async function fetchSnippets(filters?: { search?: string; tag?: string; tags?: string }): Promise<{ data: Snippet[]; meta: { total: number } }> {
+async function fetchSnippets(filters?: { search?: string; tag?: string; tags?: string; collection_id?: string }): Promise<{ data: Snippet[]; meta: { total: number } }> {
   const params = new URLSearchParams();
   if (filters?.search) params.append('search', filters.search);
   if (filters?.tag) params.append('tag', filters.tag);
   if (filters?.tags) params.append('tags', filters.tags);
+  if (filters?.collection_id) params.append('collection_id', filters.collection_id);
   
   const url = `${API_URL}/api/snippets${params.toString() ? '?' + params.toString() : ''}`;
   const response = await fetch(url);
@@ -64,18 +66,36 @@ async function deleteSnippet(id: string): Promise<void> {
 
 export function Snippets() {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [selectedTags, setSelectedTags] = useState<string[]>(searchParams.get('tags')?.split(',').filter(Boolean) || []);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSnippet, setSelectedSnippet] = useState<Snippet | null>(null);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [deletingSnippet, setDeletingSnippet] = useState<Snippet | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Get collection from URL params
+  const collectionParam = searchParams.get('collection');
+  const filterParam = searchParams.get('filter'); // 'uncategorized'
+
   // Build query params for fetching
-  const queryParams: { search?: string; tags?: string } = {};
+  const queryParams: { search?: string; tags?: string; collection_id?: string } = {};
   if (searchQuery) queryParams.search = searchQuery;
   if (selectedTags.length > 0) queryParams.tags = selectedTags.join(',');
+  if (collectionParam) queryParams.collection_id = collectionParam;
+  if (filterParam === 'uncategorized') queryParams.collection_id = 'null';
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.set('search', searchQuery);
+    if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
+    if (collectionParam) params.set('collection', collectionParam);
+    if (filterParam === 'uncategorized') params.set('filter', 'uncategorized');
+    setSearchParams(params, { replace: true });
+  }, [searchQuery, selectedTags, collectionParam, filterParam, setSearchParams]);
 
   const { data: snippetsData, isLoading: isLoadingSnippets } = useQuery(
     ['snippets', queryParams],
@@ -88,6 +108,7 @@ export function Snippets() {
   const createMutation = useMutation(createSnippet, {
     onSuccess: () => {
       queryClient.invalidateQueries('snippets');
+      queryClient.invalidateQueries('collections');
       setIsCreating(false);
     },
   });
@@ -97,6 +118,7 @@ export function Snippets() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('snippets');
+        queryClient.invalidateQueries('collections');
         setEditingSnippet(null);
         setSelectedSnippet(null);
       },
@@ -106,6 +128,7 @@ export function Snippets() {
   const deleteMutation = useMutation(deleteSnippet, {
     onSuccess: () => {
       queryClient.invalidateQueries('snippets');
+      queryClient.invalidateQueries('collections');
       setDeletingSnippet(null);
       setSelectedSnippet(null);
     },
@@ -113,6 +136,21 @@ export function Snippets() {
 
   const isLoading = isLoadingSnippets || isLoadingCollections || isLoadingTags;
   const snippets = snippetsData?.data || [];
+
+  // Determine current view title
+  let viewTitle = 'Snippets';
+  let viewDescription = `${snippetsData?.meta.total || 0} code snippets`;
+  
+  if (filterParam === 'uncategorized') {
+    viewTitle = 'Uncategorized';
+    viewDescription = `${snippetsData?.meta.total || 0} uncategorized snippets`;
+  } else if (collectionParam && collections) {
+    const collection = collections.find(c => c.id === collectionParam);
+    if (collection) {
+      viewTitle = collection.name;
+      viewDescription = `${snippetsData?.meta.total || 0} snippets in ${collection.name}`;
+    }
+  }
 
   const handleCreate = (data: SnippetInput) => {
     createMutation.mutate(data);
@@ -137,9 +175,12 @@ export function Snippets() {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedTags([]);
+    if (collectionParam || filterParam) {
+      setSearchParams({});
+    }
   };
 
-  const hasActiveFilters = searchQuery || selectedTags.length > 0;
+  const hasActiveFilters = searchQuery || selectedTags.length > 0 || collectionParam || filterParam;
 
   // Show detail view
   if (selectedSnippet) {
@@ -158,10 +199,8 @@ export function Snippets() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-100">Snippets</h1>
-          <p className="text-surface-400 mt-1">
-            {snippetsData?.meta.total || 0} code snippets
-          </p>
+          <h1 className="text-2xl font-bold text-surface-100">{viewTitle}</h1>
+          <p className="text-surface-400 mt-1">{viewDescription}</p>
         </div>
         <button
           onClick={() => setIsCreating(true)}
@@ -240,6 +279,33 @@ export function Snippets() {
               </span>
             );
           })}
+          {collectionParam && collections && (
+            (() => {
+              const col = collections.find(c => c.id === collectionParam);
+              if (!col) return null;
+              return (
+                <span
+                  className="flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium"
+                  style={{ backgroundColor: col.color + '20', color: col.color }}
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  {col.name}
+                  <button onClick={() => setSearchParams({})} className="hover:opacity-80 cursor-pointer">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              );
+            })()
+          )}
+          {filterParam === 'uncategorized' && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium bg-gray-500/20 text-gray-400">
+              <FolderOpen className="w-3 h-3" />
+              Uncategorized
+              <button onClick={() => setSearchParams({})} className="hover:opacity-80 cursor-pointer">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
           <button
             onClick={clearFilters}
             className="text-sm text-surface-500 hover:text-surface-300 cursor-pointer transition-colors"

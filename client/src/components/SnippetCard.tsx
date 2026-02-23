@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileCode, Copy, Check, Trash2, Edit } from 'lucide-react';
-import type { Snippet } from '../types';
+import { FileCode, Copy, Check, Trash2, Edit, FolderInput, ChevronDown } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import type { Snippet, Collection } from '../types';
 
 interface SnippetCardProps {
   snippet: Snippet;
@@ -9,9 +10,43 @@ interface SnippetCardProps {
   onClick?: (snippet: Snippet) => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
+
+async function fetchCollections(): Promise<Collection[]> {
+  const response = await fetch(`${API_URL}/api/collections`)
+  if (!response.ok) throw new Error('Failed to fetch collections')
+  return response.json()
+}
+
+async function moveToCollection(snippetId: string, collectionId: string | null): Promise<Snippet> {
+  const response = await fetch(`${API_URL}/api/snippets/${snippetId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ collection_id: collectionId }),
+  })
+  if (!response.ok) throw new Error('Failed to move snippet')
+  return response.json()
+}
+
 export function SnippetCard({ snippet, onEdit, onDelete, onClick }: SnippetCardProps) {
+  const queryClient = useQueryClient()
   const [copied, setCopied] = useState(false);
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const { data: collections = [] } = useQuery('collections', fetchCollections)
+  const moveMutation = useMutation(
+    ({ snippetId, collectionId }: { snippetId: string; collectionId: string | null }) => 
+      moveToCollection(snippetId, collectionId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('snippets')
+        queryClient.invalidateQueries('collections')
+        setShowMoveMenu(false)
+      },
+    }
+  )
 
   useEffect(() => {
     return () => {
@@ -20,6 +55,17 @@ export function SnippetCard({ snippet, onEdit, onDelete, onClick }: SnippetCardP
       }
     };
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMoveMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -41,6 +87,10 @@ export function SnippetCard({ snippet, onEdit, onDelete, onClick }: SnippetCardP
     e.stopPropagation();
     onDelete?.(snippet);
   };
+
+  const handleMoveTo = (collectionId: string | null) => {
+    moveMutation.mutate({ snippetId: snippet.id, collectionId })
+  }
 
   const lines = snippet.code.split('\n');
   const previewLines = lines.slice(0, 3).join('\n');
@@ -128,6 +178,60 @@ export function SnippetCard({ snippet, onEdit, onDelete, onClick }: SnippetCardP
               <Copy className="w-4 h-4" />
             )}
           </button>
+          
+          {/* Move to Collection Dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowMoveMenu(!showMoveMenu)
+              }}
+              className="btn btn-ghost p-2"
+              title="Move to collection"
+            >
+              <FolderInput className="w-4 h-4" />
+              <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showMoveMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showMoveMenu && (
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase">
+                  Move to
+                </div>
+                
+                {/* Uncategorized option */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleMoveTo(null)
+                  }}
+                  className={`w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer transition-colors ${
+                    !snippet.collection_id ? 'bg-gray-100 dark:bg-gray-700' : ''
+                  }`}
+                >
+                  <span className="w-4 h-4 rounded-full bg-gray-400" />
+                  Uncategorized
+                </button>
+                
+                {collections.map((collection) => (
+                  <button
+                    key={collection.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleMoveTo(collection.id)
+                    }}
+                    className={`w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer transition-colors ${
+                      snippet.collection_id === collection.id ? 'bg-gray-100 dark:bg-gray-700' : ''
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full" style={{ backgroundColor: collection.color }} />
+                    <span className="truncate">{collection.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleEdit}
             className="btn btn-ghost p-2"

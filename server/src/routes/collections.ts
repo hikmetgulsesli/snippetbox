@@ -59,4 +59,28 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Move snippet to collection
+router.post('/:id/snippets', async (req, res) => {
+  const { snippet_id, target_collection_id } = req.body;
+  
+  try {
+    // If target_collection_id is null, move to uncategorized
+    const result = await pool.query(`
+      UPDATE snippets 
+      SET collection_id = $1, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $2 
+      RETURNING *
+    `, [target_collection_id || null, snippet_id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Snippet not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error moving snippet:', err);
+    res.status(500).json({ error: 'Failed to move snippet' });
+  }
+});
+
 export default router;
