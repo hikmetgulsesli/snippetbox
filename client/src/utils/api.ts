@@ -1,6 +1,6 @@
 import type { SnippetFormData, CollectionFormData, TagFormData } from '../types/index.js';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 async function fetchApi(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}${endpoint}`, {

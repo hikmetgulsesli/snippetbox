@@ -19,7 +19,7 @@ interface Stats {
 }
 
 async function fetchStats(): Promise<Stats> {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
+  const API_URL = import.meta.env.VITE_API_URL ?? '';
   const response = await fetch(`${API_URL}/api/stats`)
   if (!response.ok) throw new Error('Failed to fetch stats')
   return response.json()

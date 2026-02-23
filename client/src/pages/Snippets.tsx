@@ -10,7 +10,7 @@ import { TagFilter } from '../components/TagCloud';
 import { useToast } from '../contexts/ToastContext';
 import type { Snippet, SnippetInput, Collection, Tag as TagType } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 async function fetchSnippets(filters?: { search?: string; tag?: string; tags?: string }): Promise<{ data: Snippet[]; meta: { total: number } }> {
   const params = new URLSearchParams();
