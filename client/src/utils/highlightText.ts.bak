@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 
 interface HighlightTextProps {
   text: string;
@@ -8,19 +8,23 @@ interface HighlightTextProps {
 
 export function HighlightText({ text, highlight, className = '' }: HighlightTextProps) {
   if (!highlight || !highlight.trim()) {
-    return React.createElement(React.Fragment, null, text);
+    return <>{text}</>;
   }
 
-  const parts = text.split(new RegExp('(' + escapeRegExp(highlight) + ')', 'gi'));
+  const parts = text.split(new RegExp(`(${escapeRegExp(highlight)})`, 'gi'));
 
-  return React.createElement(
-    'span',
-    { className },
-    parts.map((part, i) =>
-      part.toLowerCase() === highlight.toLowerCase()
-        ? React.createElement('mark', { key: i, className: 'bg-yellow-500/30 text-yellow-200 rounded px-0.5' }, part)
-        : part
-    )
+  return (
+    <span className={className}>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-500/30 text-yellow-200 rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </span>
   );
 }
 
@@ -34,6 +38,6 @@ export function highlightCode(code: string, highlight: string): string {
   }
 
   const escaped = escapeRegExp(highlight);
-  const regex = new RegExp('(' + escaped + ')', 'gi');
+  const regex = new RegExp(`(${escaped})`, 'gi');
   return code.replace(regex, '<mark class="bg-yellow-500/30 text-yellow-200">$1</mark>');
 }
