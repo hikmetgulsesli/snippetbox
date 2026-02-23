@@ -1,21 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Copy, Check, ArrowLeft, FileCode, Tag } from 'lucide-react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Copy, Check, ArrowLeft, FileCode } from 'lucide-react';
+import type { Snippet } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
-
-interface Snippet {
-  id: string;
-  title: string;
-  description: string | null;
-  code: string;
-  language: string;
-  tags: { id: string; name: string; color: string }[];
-  collection: { id: string; name: string; color: string } | null;
-  is_public: boolean;
-}
 
 export function Share() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -23,11 +11,12 @@ export function Share() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
   useEffect(() => {
     async function fetchSnippet() {
       try {
-        const response = await fetch(`${API_URL}/s/${shareId}`);
+        const response = await fetch(`${API_URL}/snippets/share/${shareId}`);
         if (!response.ok) {
           throw new Error('Snippet not found or not public');
         }
@@ -39,7 +28,7 @@ export function Share() {
         setLoading(false);
       }
     }
-    
+
     if (shareId) {
       fetchSnippet();
     }
@@ -47,15 +36,32 @@ export function Share() {
 
   const handleCopy = async () => {
     if (snippet) {
-      await navigator.clipboard.writeText(snippet.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(snippet.code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy code:', err);
+      }
+    }
+  };
+
+  const handleShare = async () => {
+    if (snippet) {
+      try {
+        const shareUrl = `${window.location.origin}/s/${snippet.share_id}`;
+        await navigator.clipboard.writeText(shareUrl);
+        setShareLinkCopied(true);
+        setTimeout(() => setShareLinkCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy share link:', err);
+      }
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--surface-900)] flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
       </div>
     );
@@ -63,10 +69,10 @@ export function Share() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--surface-900)] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Snippet Not Found</h1>
-          <p className="text-gray-400 mb-6">{error}</p>
+          <h1 className="text-2xl font-bold text-[var(--surface-100)] mb-4">Snippet Not Found</h1>
+          <p className="text-[var(--surface-400)] mb-6">{error}</p>
           <Link to="/" className="text-primary-400 hover:text-primary-300">
             Go to SnippetBox
           </Link>
@@ -78,11 +84,11 @@ export function Share() {
   if (!snippet) return null;
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-[var(--surface-900)]">
       {/* Header */}
-      <header className="border-b border-gray-800">
+      <header className="border-b border-[var(--surface-700)]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors cursor-pointer">
+          <Link to="/" className="flex items-center gap-2 text-[var(--surface-400)] hover:text-[var(--surface-100)] transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span>SnippetBox</span>
           </Link>
@@ -98,20 +104,20 @@ export function Share() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Title & Description */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">{snippet.title}</h1>
+          <h1 className="text-3xl font-bold text-[var(--surface-100)] mb-2">{snippet.title}</h1>
           {snippet.description && (
-            <p className="text-gray-400">{snippet.description}</p>
+            <p className="text-[var(--surface-400)]">{snippet.description}</p>
           )}
         </div>
 
         {/* Meta */}
-        <div className="flex items-center gap-4 mb-6 text-sm text-gray-500">
+        <div className="flex items-center gap-4 mb-6 text-sm text-[var(--surface-500)]">
           <span className="flex items-center gap-1">
             <FileCode className="w-4 h-4" />
             {snippet.language}
           </span>
           {snippet.collection && (
-            <span 
+            <span
               className="flex items-center gap-1"
               style={{ color: snippet.collection.color }}
             >
@@ -136,29 +142,44 @@ export function Share() {
         )}
 
         {/* Code */}
-        <div className="relative rounded-lg overflow-hidden border border-gray-800">
-          <div className="absolute top-2 right-2 z-10">
+        <div className="relative rounded-lg overflow-hidden border border-[var(--surface-700)]">
+          <div className="absolute top-2 right-2 z-10 flex gap-2">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm cursor-pointer transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--surface-800)] hover:bg-[var(--surface-700)] text-[var(--surface-300)] text-sm transition-colors"
             >
               {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
               {copied ? 'Copied!' : 'Copy'}
             </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--surface-800)] hover:bg-[var(--surface-700)] text-[var(--surface-300)] text-sm transition-colors"
+            >
+              {shareLinkCopied ? <Check className="w-4 h-4 text-green-400" /> : <FileCode className="w-4 h-4" />}
+              {shareLinkCopied ? 'Link copied!' : 'Share'}
+            </button>
           </div>
-          <SyntaxHighlighter
-            language={snippet.language}
-            style={vscDarkPlus}
-            showLineNumbers
-            customStyle={{
-              margin: 0,
-              padding: '1rem',
-              background: '#1e1e1e',
-              fontSize: '14px',
-            }}
-          >
-            {snippet.code}
-          </SyntaxHighlighter>
+          <div className="p-6 overflow-auto max-h-[50vh]">
+            <pre className="code-block">
+              <code className="text-[var(--text)]">{snippet.code}</code>
+            </pre>
+          </div>
+        </div>
+
+        {/* Share link */}
+        <div className="mt-6 p-4 rounded-lg bg-[var(--surface-800)] border border-[var(--surface-700)]">
+          <p className="text-sm text-[var(--surface-400)] mb-2">Share this snippet</p>
+          <div className="flex items-center gap-2">
+            <code className="px-3 py-1.5 rounded bg-[var(--surface-900)] text-[var(--surface-300)] text-sm font-mono break-all">
+              {window.location.origin}/s/{snippet.share_id}
+            </code>
+            <button
+              onClick={handleShare}
+              className="px-4 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"
+            >
+              {shareLinkCopied ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
         </div>
       </main>
     </div>
