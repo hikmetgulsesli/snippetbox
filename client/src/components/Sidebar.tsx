@@ -5,8 +5,7 @@ import {
   Tags, 
   Settings,
   ChevronLeft,
-  ChevronRight,
-  Sparkles
+  ChevronRight
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { clsx, type ClassValue } from 'clsx'
@@ -26,7 +25,6 @@ const navItems = [
   { path: '/snippets', icon: Code2, label: 'Snippets' },
   { path: '/collections', icon: FolderOpen, label: 'Collections' },
   { path: '/tags', icon: Tags, label: 'Tags' },
-  { path: '/playground', icon: Sparkles, label: 'Playground' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ]
 
