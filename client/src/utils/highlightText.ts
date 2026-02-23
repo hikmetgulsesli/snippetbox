@@ -1,0 +1,43 @@
+import React from 'react';
+
+interface HighlightTextProps {
+  text: string;
+  highlight: string;
+  className?: string;
+}
+
+export function HighlightText({ text, highlight, className = '' }: HighlightTextProps) {
+  if (!highlight || !highlight.trim()) {
+    return <>{text}</>;
+  }
+
+  const parts = text.split(new RegExp(`(${escapeRegExp(highlight)})`, 'gi'));
+  
+  return (
+    <span className={className}>
+      {parts.map((part, i) => 
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-500/30 text-yellow-200 rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </span>
+  );
+}
+
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function highlightCode(code: string, highlight: string): string {
+  if (!highlight || !highlight.trim()) {
+    return code;
+  }
+  
+  const escaped = escapeRegExp(highlight);
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  return code.replace(regex, '<mark class="bg-yellow-500/30 text-yellow-200">$1</mark>');
+}
