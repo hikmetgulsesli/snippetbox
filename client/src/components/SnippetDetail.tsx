@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileCode, Copy, Check, X, Trash2, Edit, Calendar, Folder, Tag } from 'lucide-react';
+import { FileCode, Copy, Check, X, Trash2, Edit, Calendar, Folder, Tag, Share2 } from 'lucide-react';
 import type { Snippet } from '../types';
 
 interface SnippetDetailProps {
@@ -37,6 +37,13 @@ export function SnippetDetail({ snippet, onClose, onEdit, onDelete }: SnippetDet
 
   const handleDelete = () => {
     onDelete?.(snippet);
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/s/${snippet.share_id}`;
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -86,6 +93,15 @@ export function SnippetDetail({ snippet, onClose, onEdit, onDelete }: SnippetDet
                 </>
               )}
             </button>
+            {snippet.share_id && (
+              <button
+                onClick={handleShare}
+                className="btn btn-secondary flex items-center gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share</span>
+              </button>
+            )}
             <button
               onClick={handleEdit}
               className="btn btn-secondary flex items-center gap-2"
