@@ -121,7 +121,7 @@ describe('SnippetForm', () => {
         collections={mockCollections}
         tags={mockTags}
         onSubmit={vi.fn()}
-        onClose={handleCancel}
+        onCancel={handleCancel}
       />
     );
     
