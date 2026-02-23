@@ -57,8 +57,16 @@ app.use('/api/search', searchRoutes);
 app.use('/api/import-export', importExportRoutes);
 app.use('/api/stats', statsRoutes);
 
+// API routes
+app.use('/api/snippets', snippetRoutes);
+app.use('/api/tags', tagRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/import-export', importExportRoutes);
+app.use('/api/stats', statsRoutes);
+
 // Public snippet sharing
-app.use('/s', publicLimiter);
+app.use('/s', snippetRoutes);
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
