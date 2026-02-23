@@ -51,3 +51,6 @@ temp/
 # Misc
 .cache/
 .parcel-cache/
+
+# Git worktrees
+.worktrees/
