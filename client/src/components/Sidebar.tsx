@@ -5,11 +5,14 @@ import {
   Tags, 
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Moon,
+  Sun
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { useTheme } from '../contexts/ThemeContext'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -18,6 +21,7 @@ function cn(...inputs: ClassValue[]) {
 interface SidebarProps {
   isOpen: boolean
   onToggle: () => void
+  isMobile?: boolean
 }
 
 const navItems = [
@@ -28,12 +32,15 @@ const navItems = [
   { path: '/settings', icon: Settings, label: 'Settings' },
 ]
 
-export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+export function Sidebar({ isOpen, onToggle, isMobile = false }: SidebarProps) {
+  const { theme, toggleTheme } = useTheme()
+
   return (
     <aside
       className={cn(
         'fixed left-0 top-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-50',
-        isOpen ? 'w-64' : 'w-16'
+        isOpen ? 'w-64' : 'w-16',
+        isMobile && !isOpen && 'translate-x-[-100%]'
       )}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -45,7 +52,8 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         )}
         <button
           onClick={onToggle}
-          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+          aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           {isOpen ? (
             <ChevronLeft className="w-5 h-5 text-gray-500" />
@@ -63,7 +71,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 to={item.path}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer',
                     isActive
                       ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
                       : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
@@ -77,6 +85,34 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           ))}
         </ul>
       </nav>
+
+      {/* Theme Toggle */}
+      {isOpen && (
+        <div className="absolute bottom-4 left-0 right-0 px-4">
+          <button
+            onClick={toggleTheme}
+            className={cn(
+              'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg',
+              'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700',
+              'transition-all duration-200 cursor-pointer',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2'
+            )}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">Light Mode</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">Dark Mode</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

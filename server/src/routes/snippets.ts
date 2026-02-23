@@ -508,27 +508,4 @@ router.delete('/:id/tags/:tagId', validateParams(z.object({
   }
 });
 
-// Get all unique languages used in snippets
-router.get('/languages', async (_req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT DISTINCT language, COUNT(*) as count 
-      FROM snippets 
-      WHERE language IS NOT NULL 
-      GROUP BY language 
-      ORDER BY count DESC, language ASC
-    `);
-    
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching languages:', err);
-    res.status(500).json({ 
-      error: { 
-        code: 'INTERNAL_ERROR', 
-        message: 'Failed to fetch languages' 
-      } 
-    });
-  }
-});
-
 export default router;

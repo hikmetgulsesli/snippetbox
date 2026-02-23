@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Plus, Search, Tag, X } from 'lucide-react';
 import { SnippetCard } from '../components/SnippetCard';
@@ -7,6 +7,7 @@ import { SnippetForm } from '../components/SnippetForm';
 import { DeleteModal } from '../components/DeleteModal';
 import { SnippetListSkeleton } from '../components/Skeletons';
 import { TagFilter } from '../components/TagCloud';
+import { useToast } from '../contexts/ToastContext';
 import type { Snippet, SnippetInput, Collection, Tag as TagType } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
@@ -62,8 +63,15 @@ async function deleteSnippet(id: string): Promise<void> {
   if (!response.ok) throw new Error('Failed to delete snippet');
 }
 
-export function Snippets() {
+interface SnippetsProps {
+  searchOpen?: boolean;
+  onSearchClose?: () => void;
+}
+
+export function Snippets({ searchOpen = false, onSearchClose }: SnippetsProps) {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -71,6 +79,14 @@ export function Snippets() {
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [deletingSnippet, setDeletingSnippet] = useState<Snippet | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Handle search open from keyboard shortcut
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+      onSearchClose?.();
+    }
+  }, [searchOpen, onSearchClose]);
 
   // Build query params for fetching
   const queryParams: { search?: string; tags?: string } = {};
@@ -89,6 +105,10 @@ export function Snippets() {
     onSuccess: () => {
       queryClient.invalidateQueries('snippets');
       setIsCreating(false);
+      showToast('Snippet created successfully', 'success');
+    },
+    onError: () => {
+      showToast('Failed to create snippet', 'error');
     },
   });
 
@@ -99,6 +119,10 @@ export function Snippets() {
         queryClient.invalidateQueries('snippets');
         setEditingSnippet(null);
         setSelectedSnippet(null);
+        showToast('Snippet updated successfully', 'success');
+      },
+      onError: () => {
+        showToast('Failed to update snippet', 'error');
       },
     }
   );
@@ -108,6 +132,10 @@ export function Snippets() {
       queryClient.invalidateQueries('snippets');
       setDeletingSnippet(null);
       setSelectedSnippet(null);
+      showToast('Snippet deleted successfully', 'success');
+    },
+    onError: () => {
+      showToast('Failed to delete snippet', 'error');
     },
   });
 
@@ -115,19 +143,19 @@ export function Snippets() {
   const snippets = snippetsData?.data || [];
 
   const handleCreate = (data: SnippetInput) => {
+    
     createMutation.mutate(data);
   };
 
   const handleUpdate = (data: SnippetInput) => {
+    
     if (editingSnippet) {
       updateMutation.mutate({ id: editingSnippet.id, data });
     }
   };
 
   const handleDelete = () => {
-    if (deletingSnippet) {
-      deleteMutation.mutate(deletingSnippet.id);
-    }
+    deleteMutation.mutate(deletingSnippet!.id);
   };
 
   const handleTagFilterChange = (tagIds: string[]) => {
@@ -158,14 +186,14 @@ export function Snippets() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-100">Snippets</h1>
-          <p className="text-surface-400 mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text)]">Snippets</h1>
+          <p className="text-[var(--text-muted)] mt-1">
             {snippetsData?.meta.total || 0} code snippets
           </p>
         </div>
         <button
           onClick={() => setIsCreating(true)}
-          className="px-4 py-2 rounded-lg font-medium bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+          className="btn btn-primary cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           New Snippet
@@ -175,27 +203,31 @@ export function Snippets() {
       {/* Search and Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
           <input
+            ref={searchInputRef}
             type="text"
-            placeholder="Search snippets..."
+            placeholder="Search snippets... (Ctrl+K)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-800 border border-surface-700 text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input pl-10"
           />
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+          className={`
+            px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 cursor-pointer transition-all duration-200
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]
+            ${
             showFilters || hasActiveFilters
-              ? 'bg-primary-500/20 text-primary-400 border border-primary-500/50'
-              : 'bg-surface-800 border border-surface-700 text-surface-300 hover:bg-surface-700'
+              ? 'bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/50'
+              : 'bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-elevated)]'
           }`}
         >
           <Tag className="w-4 h-4" />
           Tags
           {selectedTags.length > 0 && (
-            <span className="px-1.5 py-0.5 text-xs rounded-full bg-primary-500 text-white">
+            <span className="px-1.5 py-0.5 text-xs rounded-full bg-[var(--primary)] text-[var(--surface)]">
               {selectedTags.length}
             </span>
           )}
@@ -204,7 +236,7 @@ export function Snippets() {
 
       {/* Tag Filters Panel */}
       {showFilters && tags && tags.length > 0 && (
-        <div className="p-4 rounded-lg bg-surface-800 border border-surface-700">
+        <div className="p-4 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)]">
           <TagFilter
             tags={tags}
             selectedTags={selectedTags}
@@ -216,11 +248,11 @@ export function Snippets() {
       {/* Active filters display */}
       {hasActiveFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-surface-500">Active filters:</span>
+          <span className="text-sm text-[var(--text-muted)]">Active filters:</span>
           {searchQuery && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-surface-700 text-surface-300 text-sm">
+            <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--surface-alt)] text-[var(--text-muted)] text-sm">
               Search: {searchQuery}
-              <button onClick={() => setSearchQuery('')} className="hover:text-surface-100 cursor-pointer">
+              <button onClick={() => setSearchQuery('')} className="hover:text-[var(--text)] cursor-pointer">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -242,7 +274,7 @@ export function Snippets() {
           })}
           <button
             onClick={clearFilters}
-            className="text-sm text-surface-500 hover:text-surface-300 cursor-pointer transition-colors"
+            className="text-sm text-[var(--text-muted)] hover:text-[var(--text)] cursor-pointer transition-colors"
           >
             Clear all
           </button>
@@ -270,7 +302,7 @@ export function Snippets() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-surface-400">
+          <p className="text-[var(--text-muted)]">
             {hasActiveFilters
               ? 'No snippets match your filters'
               : 'No snippets yet. Create your first one!'}
@@ -278,7 +310,7 @@ export function Snippets() {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="mt-4 text-primary-400 hover:text-primary-300 cursor-pointer transition-colors"
+              className="mt-4 text-[var(--primary)] hover:text-[var(--primary-hover)] cursor-pointer transition-colors"
             >
               Clear filters
             </button>

@@ -19,7 +19,8 @@ interface Stats {
 }
 
 async function fetchStats(): Promise<Stats> {
-  const response = await fetch('/api/stats')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3512';
+  const response = await fetch(`${API_URL}/api/stats`)
   if (!response.ok) throw new Error('Failed to fetch stats')
   return response.json()
 }
@@ -31,11 +32,11 @@ export function Dashboard() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-[var(--text)]">Dashboard</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="card p-6 h-24 animate-pulse bg-gray-200 dark:bg-gray-700" />
+            <div key={i} className="card p-6 h-24 animate-pulse bg-[var(--surface-alt)]" />
           ))}
         </div>
       </div>
@@ -45,10 +46,10 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Dashboard</h1>
         <Link
           to="/snippets"
-          className="btn-primary flex items-center gap-2"
+          className="btn btn-primary cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           New Snippet
@@ -61,7 +62,7 @@ export function Dashboard() {
           icon={Code2}
           label="Total Snippets"
           value={stats?.total_snippets || 0}
-          color="blue"
+          color="cyan"
         />
         <StatCard
           icon={FolderOpen}
@@ -86,8 +87,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Snippets */}
         <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-gray-500" />
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-[var(--text-muted)]" />
             Recent Snippets
           </h2>
           <div className="space-y-3">
@@ -95,26 +96,26 @@ export function Dashboard() {
               <Link
                 key={snippet.id}
                 to={`/snippets?id=${snippet.id}`}
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--surface-alt)] transition-colors cursor-pointer"
               >
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{snippet.title}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-[var(--text)]">{snippet.title}</p>
+                  <p className="text-sm text-[var(--text-muted)]">
                     {new Date(snippet.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                <span className="px-2 py-1 text-xs font-medium rounded bg-[var(--surface-alt)] text-[var(--text-muted)]">
                   {snippet.language}
                 </span>
               </Link>
-            )) || <p className="text-gray-500">No snippets yet</p>}
+            )) || <p className="text-[var(--text-muted)]">No snippets yet</p>}
           </div>
         </div>
 
         {/* Top Tags */}
         <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Tags className="w-5 h-5 text-gray-500" />
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-4 flex items-center gap-2">
+            <Tags className="w-5 h-5 text-[var(--text-muted)]" />
             Top Tags
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -122,12 +123,12 @@ export function Dashboard() {
               <Link
                 key={tag.name}
                 to={`/snippets?tag=${tag.name}`}
-                className="px-3 py-1.5 rounded-full text-sm font-medium transition-opacity hover:opacity-80"
+                className="px-3 py-1.5 rounded-full text-sm font-medium transition-opacity hover:opacity-80 cursor-pointer"
                 style={{ backgroundColor: tag.color + '20', color: tag.color }}
               >
                 {tag.name} ({tag.count})
               </Link>
-            )) || <p className="text-gray-500">No tags yet</p>}
+            )) || <p className="text-[var(--text-muted)]">No tags yet</p>}
           </div>
         </div>
       </div>
@@ -139,15 +140,15 @@ interface StatCardProps {
   icon: React.ElementType
   label: string
   value: number
-  color: 'blue' | 'green' | 'purple' | 'orange'
+  color: 'cyan' | 'green' | 'purple' | 'orange'
 }
 
 function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
   const colors = {
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-    green: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
-    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
-    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400',
+    cyan: 'bg-[var(--primary)]/10 text-[var(--primary)]',
+    green: 'bg-[var(--success)]/10 text-[var(--success)]',
+    purple: 'bg-purple-500/10 text-purple-500',
+    orange: 'bg-[var(--warning)]/10 text-[var(--warning)]',
   }
 
   return (
@@ -157,8 +158,8 @@ function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
           <Icon className="w-6 h-6" />
         </div>
         <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+          <p className="text-sm text-[var(--text-muted)]">{label}</p>
+          <p className="text-2xl font-bold text-[var(--text)]">{value}</p>
         </div>
       </div>
     </div>

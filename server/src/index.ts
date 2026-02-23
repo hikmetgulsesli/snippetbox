@@ -11,7 +11,6 @@ import collectionRoutes from './routes/collections.js';
 import searchRoutes from './routes/search.js';
 import importExportRoutes from './routes/importExport.js';
 import statsRoutes from './routes/stats.js';
-import shareRoutes from './routes/share.js';
 
 dotenv.config();
 
@@ -58,8 +57,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/import-export', importExportRoutes);
 app.use('/api/stats', statsRoutes);
 
-// Public snippet sharing with stricter rate limiting
-app.use('/s', publicLimiter, shareRoutes);
+// Public snippet sharing
+app.use('/s', publicLimiter);
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
